@@ -315,10 +315,12 @@ class CandidateNetwork(Graph):
         def get_column_type(table,attribute):
             # TODO: Handle attributes from the "varchar"  domain
             # but do not have to be indexed
-            # if table == 'title' and attribute == 'production_year':
-            #     return 'integer'
-            # if table == 'organization' and attribute=='abbreviation':
-            #     return 'varchar'
+            if table == 'title' and attribute == 'production_year':
+                return 'integer'
+            if table == 'movie' and attribute == 'year':
+                return 'integer'
+            if table == 'organization' and attribute=='abbreviation':
+                return 'varchar'
             return 'fulltext_indexed'
 
         for prev_vertex,direction,vertex in self.dfs_pair_iter(root_predecessor=True):

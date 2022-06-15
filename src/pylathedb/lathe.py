@@ -71,8 +71,8 @@ class Lathe:
         for item in self.get_queryset():
             keyword_query = item['keyword_query']
 
-            print(f'Running keyword search for query: {keyword_query}')
             if keyword_query in preprocessed_results:
+                print(f'Keyword Query: {keyword_query}')
                 print('  Preprocessed results loaded')
                 result = preprocessed_results[keyword_query]
             else:
@@ -94,6 +94,11 @@ class Lathe:
                 json.dump(data,f, indent = 4)
 
         return data
+
+    def evaluate_queryset(self,results, **kwargs):
+        self.evaluation_handler.load_golden_standards()
+        evaluated_results = self.evaluation_handler.evaluate_results(results, **kwargs)
+        return evaluated_results
 
     def keyword_search(self,keyword_query=None,**kwargs):
         max_qm_size=kwargs.get('max_qm_size', self.max_qm_size)

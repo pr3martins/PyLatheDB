@@ -2,10 +2,13 @@ import json
 from collections import OrderedDict
 from os import makedirs
 from os.path import dirname
+from copy import deepcopy
 
-from pylathedb.utils import ConfigHandler,get_logger,next_path,last_path
+from pylathedb.utils import ConfigHandler,get_logger,next_path,last_path,LatheResult
 from pylathedb.query_match import QueryMatch
 from pylathedb.candidate_network import CandidateNetwork
+
+from .evaluation_result import EvaluationResult
 
 logger = get_logger(__name__)
 
@@ -53,6 +56,13 @@ class EvaluationHandler:
         approach = kwargs.get('approach','standard')
         skip_ranking_evaluation = kwargs.get('skip_ranking_evaluation',False)
         write_evaluation_only  = kwargs.get('write_evaluation_only',False)
+        
+        in_place_results  = kwargs.get('in_place_results',False)
+        use_result_class = kwargs.get('use_result_class',True)
+
+        if not in_place_results:
+            results = deepcopy(results)
+        results['results']=[item.data if isinstance(item,LatheResult) else item for item in results['results']]
 
         if not skip_ranking_evaluation:
             self.evaluate_query_matches(results)
@@ -75,6 +85,9 @@ class EvaluationHandler:
         with open(results_filename,mode='w') as f:
             logger.info(f'Writing evaluated results in {results_filename}')
             json.dump(results,f, indent = 4)
+        
+        if use_result_class:
+            return EvaluationResult(results)
 
         return results
 
@@ -86,7 +99,8 @@ class EvaluationHandler:
 
         relevant_positions = []
         for item in results['results']:
-
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'query_matches' in item:
                 golden_qm = self.golden_standards[item['keyword_query']]['query_matches'][0]
 
@@ -105,7 +119,7 @@ class EvaluationHandler:
 
         results['evaluation']['query_matches']['relevant_positions']=relevant_positions
 
-        print('QM Evaluation {}'.format(results['evaluation']['query_matches']))
+        # print('QM Evaluation {}'.format(results['evaluation']['query_matches']))
 
     def evaluate_candidate_networks(self,results,**kwargs):
         max_k = kwargs.get('max_k',10)
@@ -115,6 +129,8 @@ class EvaluationHandler:
 
         relevant_positions = []
         for item in results['results']:
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'candidate_networks' in item:
                 golden_cn = self.golden_standards[item['keyword_query']]['candidate_networks'][0]
                 # print(f'Golden CN:\n{golden_cn}')
@@ -137,7 +153,7 @@ class EvaluationHandler:
 
         results['evaluation']['candidate_networks']['relevant_positions']=relevant_positions
 
-        print('CN Evaluation {}'.format(results['evaluation']['candidate_networks']))
+        # print('CN Evaluation {}'.format(results['evaluation']['candidate_networks']))
 
 
     def evaluate_performance(self,results,**kwargs):
@@ -145,7 +161,8 @@ class EvaluationHandler:
         results['evaluation']['performance']={}
 
         for item in results['results']:
-
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'elapsed_time' in item:
                 for phase in item['elapsed_time']:
                     results['evaluation']['performance'].setdefault(phase,[]).append(item['elapsed_time'][phase])
@@ -155,7 +172,8 @@ class EvaluationHandler:
         results['evaluation']['num_keyword_matches']=[]
 
         for item in results['results']:
-
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'num_keyword_matches' in item:
                 results['evaluation']['num_keyword_matches'].append(item['num_keyword_matches'])
 
@@ -164,7 +182,8 @@ class EvaluationHandler:
         results['evaluation']['num_query_matches']=[]
 
         for item in results['results']:
-
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'num_query_matches' in item:
                 results['evaluation']['num_query_matches'].append(item['num_query_matches'])
 
@@ -172,6 +191,8 @@ class EvaluationHandler:
         results.setdefault('evaluation',{})
         results['evaluation']['num_candidate_networks']=[]
         for item in results['results']:
+            if isinstance(item,LatheResult):
+                item=item.data
             if 'num_candidate_networks' in item:
                 results['evaluation']['num_candidate_networks'].append(item['num_candidate_networks'])
 
