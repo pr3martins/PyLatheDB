@@ -1,6 +1,7 @@
 import pickle
 from os import makedirs
 from os.path import dirname
+from graphviz import Digraph
 
 from pylathedb.utils import Graph
 
@@ -32,6 +33,23 @@ class SchemaGraph(Graph):
             pickle.dump(data,f)
 
     def load_from_file(self,filename):
+        self._graph_dict = {}
+        self._edges_info = {}
+
         with open(filename,mode='rb') as f:
             data = pickle.load(f)
         self._graph_dict,self._edges_info = data
+
+    def show(self):
+        g= Digraph(
+            graph_attr={'nodesep':'0.2','ranksep':'0.25'},
+            node_attr={'fontsize':"9.0",},
+            edge_attr={'arrowsize':'0.9',},
+        )
+        for id in self.vertices():
+            g.node(id,label=str(id))
+        for id_a,id_b in schema_graph.edges():
+            g.edge(id_a,id_b)
+        print('Graph:')
+        display(g)
+    
