@@ -116,6 +116,8 @@ class ValueIndex():
         - all_keywords: All the keywords from shelve are loaded. Beware that this
          load methods might be expensive.
         '''
+        self._dict = {}
+
         self.persistant_filename = persistant_filename
         load_method = kwargs.get('load_method','keywords')
         keywords = kwargs.get('keywords',[])
@@ -139,5 +141,5 @@ class ValueIndex():
                     self._set_underlying_item(keyword,storage[keyword])
                 except KeyError:
                     self._set_underlying_item(keyword,None)
-                    print(f'Keyword {keyword} not present in persistant_filename')
+                    # print(f'Keyword {keyword} not present in the ValueIndex.')
                     continue

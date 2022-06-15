@@ -50,6 +50,9 @@ class Similarity:
         else:
             schema_term = column
 
+        if schema_term==word:
+            return 1.0
+
         if self.use_path_sim:
             sim_list.append( self.path_similarity(schema_term,word) )
 
@@ -62,7 +65,7 @@ class Similarity:
         if len(sim_list) == 0:
             return 0
 
-        if   self.aggregation_method == 'max':
-            return max(sim_list)
+        if self.aggregation_method == 'max':
+            return max(sim_list)*0.99
         elif self.aggregation_method == 'avg':
-            return (sum(sim_list) * 1.)/(len(sim_list) * 1.)
+            return (sum(sim_list) * 1.)/(len(sim_list) * 1.)*0.99

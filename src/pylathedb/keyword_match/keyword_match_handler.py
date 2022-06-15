@@ -96,7 +96,7 @@ class KeywordMatchHandler:
     def schema_keyword_match_generator(self, Q, schema_index,**kwargs):
         ignored_tables = kwargs.get('ignored_tables',[])
         ignored_attributes = kwargs.get('ignored_attributes',[])
-        threshold = kwargs.get('threshold',1)
+        threshold = kwargs.get('threshold',0.99)
         keyword_matches_to_ignore = kwargs.get('keyword_matches_to_ignore',set())
 
         S = []
