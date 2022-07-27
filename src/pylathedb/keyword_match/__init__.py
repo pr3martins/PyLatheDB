@@ -1,2 +1,2 @@
-from .keyword_match_handler import KeywordMatchHandler
 from .keyword_match import KeywordMatch
+from .keyword_match_handler import KeywordMatchHandler

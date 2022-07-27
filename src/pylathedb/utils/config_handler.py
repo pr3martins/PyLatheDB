@@ -134,4 +134,4 @@ class ConfigHandler:
                 data = json.load(f)
                 if dataset_config_filepath in (None,data['dataset_config_filepath']):
                     results.append( (data['queryset_name'], filepath) )
-        return results
+        return sorted(results)

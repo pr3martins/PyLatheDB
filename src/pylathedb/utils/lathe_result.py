@@ -1,11 +1,13 @@
+from graphviz import Digraph
+from IPython.display import display
+
 from pylathedb.candidate_network import CandidateNetwork
 from pylathedb.query_match import QueryMatch
 from pylathedb.keyword_match import KeywordMatch
-from graphviz import Digraph
-from IPython.display import display
 from pylathedb.utils.printmd import printmd
 from pylathedb.utils.shift_tab import shift_tab
 from pylathedb.utils.ordinal import ordinal
+
 
 class LatheResult():
 
@@ -15,9 +17,9 @@ class LatheResult():
         self.data = data
 
     def cjns(self,**kwargs):
-        show_str=kwargs.get('show_str',kwargs.get('text',True))
+        show_str=kwargs.get('show_str',kwargs.get('text',False))
         show_graph=kwargs.get('show_graph',kwargs.get('graph',True))
-        show_sql=kwargs.get('show_sql',kwargs.get('sql',True))
+        show_sql=kwargs.get('show_sql',kwargs.get('sql',False))
         show_df=kwargs.get('show_df',kwargs.get('df',kwargs.get('jnts',True)))
         top_k=kwargs.get('top_k',0)
         head=kwargs.get('head',5)
@@ -55,7 +57,7 @@ class LatheResult():
                     if head>0:
                         df = df.head(head)
                     if df.empty:
-                        print('\tThis void CJN returns no tuples.')
+                        print('\tThis CJN returns no tuples.')
                     else:
                         df_hide_tsvector = df.loc[:,~df.columns.str.endswith('tsvector')]
                         # dt = data_table.DataTable(df_hide_tsvector, include_index=False, num_rows_per_page=5)

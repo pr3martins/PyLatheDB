@@ -4,7 +4,8 @@ from os import makedirs
 from os.path import dirname
 from copy import deepcopy
 
-from pylathedb.utils import ConfigHandler,get_logger,next_path,last_path,LatheResult
+from pylathedb.utils import ConfigHandler,get_logger,next_path,last_path
+from pylathedb.utils.lathe_result import LatheResult
 from pylathedb.query_match import QueryMatch
 from pylathedb.candidate_network import CandidateNetwork
 

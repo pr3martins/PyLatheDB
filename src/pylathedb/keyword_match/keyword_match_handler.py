@@ -135,15 +135,15 @@ class KeywordMatchHandler:
 
         filtered_vk_matches = set()
         for value_keyword_match in vk_matches:
-            must_remove = False
+            must_remove = True
             set_a = set(value_keyword_match.keywords())
 
             for compound_keyword in compound_keywords:
                 set_b = set(compound_keyword)
 
-                set_ab = set_a | set_b
-                if len(set_ab)>0 or len(set_ab)<len(set_a):
-                    must_remove = True
+                set_ab = set_a & set_b
+                if len(set_ab)==0 or len(set_ab)==len(set_b):
+                    must_remove = False
 
             if not must_remove:
                 filtered_vk_matches.add(value_keyword_match)
