@@ -47,8 +47,8 @@ class SchemaGraph(Graph):
             edge_attr={'arrowsize':'0.9',},
         )
         for id in self.vertices():
-            g.node(id,label=str(id))
-        for id_a,id_b in schema_graph.edges():
+            g.node(id,label=str(id.upper()))
+        for id_a,id_b in self.edges():
             g.edge(id_a,id_b)
         print('Graph:')
         display(g)

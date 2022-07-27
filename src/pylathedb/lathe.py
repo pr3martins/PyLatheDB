@@ -1,7 +1,8 @@
 import json
 from timeit import default_timer as timer
 
-from pylathedb.utils import ConfigHandler, Similarity, get_logger, Tokenizer, next_path,LatheResult
+from pylathedb.utils import ConfigHandler, Similarity, get_logger, Tokenizer, next_path
+from pylathedb.utils.lathe_result import LatheResult
 from pylathedb.index import IndexHandler
 from pylathedb.database import DatabaseHandler
 from pylathedb.keyword_match import KeywordMatchHandler
@@ -242,7 +243,8 @@ class Lathe:
 
     def change_queryset(self,ans=None):
         self._queryset=None
-        return self.config.change_queryset(ans)
+        self.config.change_queryset(ans)
+        self.load_indexes()
 
     def create_indexes(self):
         self.index_handler.create_indexes()

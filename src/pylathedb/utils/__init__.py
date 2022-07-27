@@ -8,7 +8,6 @@ from .tokenizer import Tokenizer
 from .next_path import next_path,last_path
 from .tf_iaf import calculate_tf,calculate_iaf,calculate_inverse_frequency
 from .truncate import truncate
-from .lathe_result import LatheResult
 from .shift_tab import shift_tab
 from .printmd import printmd
 from .ordinal import ordinal

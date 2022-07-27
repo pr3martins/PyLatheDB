@@ -1,4 +1,4 @@
-from .index_handler import IndexHandler
+from .babel_hash import BabelHash
 from .schema_index import SchemaIndex
 from .value_index import ValueIndex
-from .babel_hash import BabelHash
+from .index_handler import IndexHandler
