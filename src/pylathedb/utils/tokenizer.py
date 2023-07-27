@@ -8,6 +8,7 @@ class Tokenizer:
     re_spaces = re.compile(r'\s+')
     translate_table = str.maketrans(ascii_uppercase+punctuation,ascii_lowercase+' '*len(punctuation))
     del translate_table[ord('_')]
+    del translate_table[ord('.')]
 
     def __init__(self, **kwargs):
         self.tokenize_method = kwargs.get('tokenize_method','simple')
@@ -20,7 +21,7 @@ class Tokenizer:
 
     def tokenize(self,text):
         if self.tokenize_method == 'simple':
-            return [keyword
+            return [keyword.strip('._')
                     for keyword in re.split(self.re_spaces, text.translate(self.translate_table))
                     if keyword not in Tokenizer.stop_words
                     and len(keyword)>1

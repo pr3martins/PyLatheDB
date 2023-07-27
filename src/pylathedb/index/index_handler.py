@@ -73,7 +73,7 @@ class IndexHandler:
 
     def create_partial_value_indexes(self,**kwargs):
         unit = kwargs.get('unit', 2**30)
-        max_memory_allowed = kwargs.get('max_memory_allowed', 8)
+        max_memory_allowed = kwargs.get('max_memory_allowed', 20)
         max_memory_allowed *= unit
         gb = 1 * unit
         

@@ -56,6 +56,7 @@ class EvaluationHandler:
         results_filename = kwargs.get('results_filename',None)
         approach = kwargs.get('approach','standard')
         skip_ranking_evaluation = kwargs.get('skip_ranking_evaluation',False)
+        skip_cn_ranking_evaluation = kwargs.get('skip_cn_ranking_evaluation',False)
         write_evaluation_only  = kwargs.get('write_evaluation_only',False)
         
         in_place_results  = kwargs.get('in_place_results',False)
@@ -67,7 +68,8 @@ class EvaluationHandler:
 
         if not skip_ranking_evaluation:
             self.evaluate_query_matches(results)
-            self.evaluate_candidate_networks(results)
+            if not skip_cn_ranking_evaluation:
+                self.evaluate_candidate_networks(results)
         self.evaluate_performance(results)
         self.evaluate_num_keyword_matches(results)
         self.evaluate_num_query_matches(results)
