@@ -15,6 +15,7 @@ class QueryMatchHandler:
         #Input:  A keyword query Q, The set of non-empty non-free tuple-sets Rq
         #Output: The set Mq of query matches for Q
         max_qm_size = kwargs.get('max_qm_size',3)
+        max_merged_qm_size = kwargs.get('max_merged_qm_size',3)
         query_matches = []
 
         for i in range(1,min(len(keywords), max_qm_size)+1):
@@ -22,7 +23,8 @@ class QueryMatchHandler:
                 if self.has_minimal_cover(candidate_query_match,keywords):
                     merged_query_match = self.merge_schema_filters(candidate_query_match)
                     query_match = QueryMatch(merged_query_match)
-                    query_matches.append(query_match)
+                    if len(merged_query_match) <= max_merged_qm_size:
+                        query_matches.append(query_match)
 
         return query_matches
 

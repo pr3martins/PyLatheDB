@@ -148,4 +148,4 @@ class KeywordMatchHandler:
             if not must_remove:
                 filtered_vk_matches.add(value_keyword_match)
 
-        return filtered_vk_matches
+        return list(filtered_vk_matches)

@@ -321,6 +321,8 @@ class CandidateNetwork(Graph):
                 return 'integer'
             if table == 'organization' and attribute=='abbreviation':
                 return 'varchar'
+            if attribute=='stars':
+                return 'integer'
             return 'fulltext_indexed'
 
         for prev_vertex,direction,vertex in self.dfs_pair_iter(root_predecessor=True):

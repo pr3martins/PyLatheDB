@@ -148,6 +148,7 @@ class Lathe:
 
         print(f'Keyword Query: {keyword_query}')
         keywords =  self.tokenizer.keywords(keyword_query)
+        compound_keywords =  self.tokenizer.keywords(keyword_query)
 
         for _ in range(repeat):
             
@@ -159,13 +160,13 @@ class Lathe:
                 
                 start_vkm_time = timer()
                 vk_matches = self.keyword_match_handler.value_keyword_match_generator(keywords, self.index_handler.value_index)
-                # vk_matches = self.keyword_match_handler.filter_kwmatches_by_compound_keywords(vk_matches,compound_keywords)
+                vk_matches = self.keyword_match_handler.filter_kwmatches_by_compound_keywords(vk_matches,compound_keywords)
                 logger.info('%d VKMs generated: %s',len(vk_matches),vk_matches)
 
                 kw_matches = sk_matches+vk_matches
                 start_qm_time = timer()
 
-                query_matches = self.query_match_handler.generate_query_matches(keywords, kw_matches)
+                query_matches = self.query_match_handler.generate_query_matches(keywords, kw_matches,**kwargs)
             else:
                 start_skm_time = timer()
                 start_vkm_time = timer()

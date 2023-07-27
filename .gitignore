@@ -1,22 +1,28 @@
+datasets
+config
+querysets
+plots
+results
+dbsources
+tests
+texts
+coffman_original_golden_standards
+newquerysets
+
+*.zip
+*.egg-info
+
+
+*.ipynb
+**/.ipynb_checkpoints
+
+
 *.pyc
 venv3
 venv
 .env
 .vscode
 **/__pycache__
-datasets
-config
-querysets
-plots
-results
-*.zip
-*.egg-info
-coffman_original_golden_standards
-*.ipynb
-**/.ipynb_checkpoints
-
-
-
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
