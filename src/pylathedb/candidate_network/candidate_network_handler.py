@@ -1,5 +1,6 @@
 from queue import deque
 from copy import deepcopy
+from sentence_transformers import SentenceTransformer
 
 from pylathedb.utils import ConfigHandler,get_logger
 from pylathedb.keyword_match import KeywordMatch
@@ -11,10 +12,12 @@ logger = get_logger(__name__)
 class CandidateNetworkHandler:
     def __init__(self,database_handler):
         self.database_handler = database_handler
+        self.bert_model = SentenceTransformer('all-mpnet-base-v2')
 
 
-    def generate_cns(self,schema_index,schema_graph,ranked_query_matches,keywords,weight_scheme,**kwargs):
+    def generate_cns(self,schema_index,schema_graph,ranked_query_matches,keywords,weight_scheme,keyword_query,**kwargs):
         topk_cns = kwargs.get('topk_cns',20)
+        cjn_ranking_method = kwargs.get('cjn_ranking_method',0)
 
         returned_cns=[]
         num_cns_available = topk_cns
@@ -31,7 +34,17 @@ class CandidateNetworkHandler:
 
                 returned_cns.append(candidate_network)
 
+                candidate_network.calculate_score(
+                    query_match,
+                    keyword_query,
+                    schema_graph,
+                    self.database_handler,
+                    self.bert_model,
+                    **kwargs
+                )
+
                 num_cns_available -=1
+
         ranked_cns=sorted(
             returned_cns,
             key=lambda candidate_network: candidate_network.score,
@@ -83,7 +96,6 @@ class CandidateNetworkHandler:
         cur_jnkm.add_keyword_match(query_match.get_km_from_keyword(keywords[0]))
 
         if len(query_match)==1:
-            cur_jnkm.calculate_score(query_match)
             returned_cns.append(cur_jnkm)
             return returned_cns
 
@@ -122,7 +134,6 @@ class CandidateNetworkHandler:
                                 if next_jnkm.is_total(query_match):
                                     if not next_jnkm.contains_keyword_free_match_leaf():                                      
                                         if not instance_based_pruning or not self.is_cn_empty(schema_graph,next_jnkm):
-                                            next_jnkm.calculate_score(query_match)
                                             returned_cns.append(next_jnkm)
                                         else:
                                             empty_cns.append(next_jnkm)

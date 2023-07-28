@@ -39,7 +39,6 @@ class Lathe:
         self.candidate_network_handler = CandidateNetworkHandler(self.database_handler)
         self.evaluation_handler.load_golden_standards()
 
-
         self._queryset=None
 
     def load_queryset(self):
@@ -200,6 +199,7 @@ class Lathe:
                     ranked_query_matches,
                     keywords,
                     weight_scheme,
+                    keyword_query,
                         **kwargs,
                 )
             else:

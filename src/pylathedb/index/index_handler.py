@@ -199,5 +199,5 @@ class IndexHandler:
     def load_indexes(self,**kwargs):
         dataset_directory = self.config.dataset_directory
         self.schema_graph.load_from_file(f'{dataset_directory}/schema_graph')
-        self.value_index.load_from_file(self.config.value_index_filepath,**kwargs)
+        self.value_index.load_from_file(f'{dataset_directory}/value_index',**kwargs)
         self.schema_index.load_from_file(f'{dataset_directory}/schema_index')

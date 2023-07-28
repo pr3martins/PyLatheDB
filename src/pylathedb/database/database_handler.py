@@ -3,6 +3,7 @@ from psycopg2.sql import SQL, Identifier
 from prettytable import PrettyTable
 from itertools import groupby
 import pandas as pd
+from sqlalchemy import create_engine
 
 from pylathedb.utils import ConfigHandler,get_logger
 
@@ -107,9 +108,9 @@ class DatabaseHandler:
                 return table
 
     def get_dataframe(self,sql,**kwargs):
-        with psycopg2.connect(**self.config.connection) as conn:
-            df=pd.read_sql(sql,conn)
-            return df
+        engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection))
+        df = pd.read_sql_query(sql, engine)
+        return df
 
     def exist_results(self,sql):
         sql = f"SELECT EXISTS ({sql.rstrip(';')});"

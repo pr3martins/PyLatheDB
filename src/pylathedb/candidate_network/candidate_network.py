@@ -1,6 +1,8 @@
 import json
 from collections import Counter  #used to check whether two CandidateNetworks are equal
 from queue import deque
+from sentence_transformers import util
+from numpy import array, char
 
 from pylathedb.keyword_match import KeywordMatch
 from pylathedb.utils import Graph
@@ -179,9 +181,55 @@ class CandidateNetwork(Graph):
         for (keyword_match,_),(neighbor_keyword_match,_) in self.edges():
             yield (keyword_match,neighbor_keyword_match)
 
-    def calculate_score(self, query_match):
-        # self.score = query_match.total_score*len(query_match)/len(self)
-        self.score = query_match.total_score/len(self)
+    def calculate_score(self,query_match,keyword_query,schema_graph,database_handler,bert_model,**kwargs):
+        cjn_ranking_method = kwargs.get('cjn_ranking_method',0)
+        snapshot_rows_number = kwargs.get('snapshot_rows_number',-1)
+
+        if cjn_ranking_method==0:
+            self.score = query_match.total_score/len(self)
+            return self.score
+
+        sql = self.get_sql_from_cn(schema_graph,show_table_alias=True)
+        df = database_handler.get_dataframe(sql)
+
+        sentences = [keyword_query]
+
+        if cjn_ranking_method <= 2:
+            for i,(index, row) in enumerate(df.iterrows()):
+                if snapshot_rows_number!=-1 and i>=snapshot_rows_number:
+                    break
+                attrs_repr = []
+                for km,alias in self.vertices():
+                    for km_type,table,attr,keywords in km.mappings():
+                        if attr!='*':
+                            value = row[f'{alias}.{attr}']
+                            attrs_repr.append(f'{table}.{attr}: {value}')
+                        else:
+                            attrs_repr.append(f'{table}: {" ".join(keywords)}')
+                            
+                sentence = ' | '.join(attrs_repr)
+                sentences.append(sentence)
+
+            if cjn_ranking_method==2:
+                sentences = [keyword_query, ' || '.join(sentences)]
+
+        if cjn_ranking_method == 3:
+            attrs_repr = []
+            for km,alias in self.vertices():
+                for km_type,table,attr,keywords in km.mappings():
+                    if attr=='*':
+                        attrs_repr.append(f'{table}: {" ".join(keywords)}')
+                    else:
+                        # numpy.char
+                        value = ', '.join(char.mod("%s", df[f'{alias}.{attr}'].values[:snapshot_rows_number]))
+                        attrs_repr.append(f'{table}.{attr}: {value}')
+            sentence = ' | '.join(attrs_repr)
+            sentences.append(sentence)
+
+        embeddings = bert_model.encode(array(sentences))
+        cos_sim = util.cos_sim(array([embeddings[0]]), embeddings[1:])
+        self.score = cos_sim.mean().item()
+        return self.score
 
     def get_qm_score(self):
         return self.score*len(self)
@@ -298,6 +346,8 @@ class CandidateNetwork(Graph):
         rows_limit=kwargs.get('rows_limit',1000)
         show_evaluation_fields=kwargs.get('show_evaluation_fields',False)
         tsvector_field_suffix=kwargs.get('tsvector_field_suffix','_tsvector')
+        show_table_alias=kwargs.get('show_table_alias',False)
+        distinct=kwargs.get('distinct',False)
 
         hashtables = {} # used for disambiguation
         used_fks = {}
@@ -328,7 +378,10 @@ class CandidateNetwork(Graph):
         for prev_vertex,direction,vertex in self.dfs_pair_iter(root_predecessor=True):
             keyword_match, alias = vertex
             for type_km, _ ,attribute,keywords in keyword_match.mappings():
-                selected_attributes.add(f'{alias}.{attribute}')
+                selected_attr = f'{alias}.{attribute}'
+                if show_table_alias:
+                    selected_attr=f'{selected_attr} AS "{alias}.{attribute}"'
+                selected_attributes.add(selected_attr)
                 sql_keywords = [keyword.replace('\'','\'\'') for keyword in keywords]
 
                 if type_km == 'v':
@@ -406,7 +459,8 @@ class CandidateNetwork(Graph):
         else:
             where_clause= ''
 
-        sql_text = '\nSELECT\n\t{}\nFROM\n\t{}\n{}\nLIMIT {};'.format(
+        sql_text = '\nSELECT{}\n\t{}\nFROM\n\t{}\n{}\nLIMIT {};'.format(
+            'DISTINCT' if distinct else '',
             ',\n\t'.join( tables__search_id+relationships__search_id+list(selected_attributes) ),
             '\n\t'.join(selected_tables),
             where_clause,
