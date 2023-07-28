@@ -1,12 +1,13 @@
 import gc
-from glob import glob
 import shelve
 from contextlib import ExitStack
 import json
 from pprint import pprint as pp
 from math import log
 from os.path import exists
-from os import remove
+from glob import glob
+from os import remove, listdir
+from re import match
 
 from pylathedb.utils import ConfigHandler,get_logger,memory_size,calculate_tf,calculate_inverse_frequency,calculate_iaf
 from pylathedb.database import DatabaseHandler
@@ -49,7 +50,7 @@ class IndexHandler:
         for constraint,values in fk_constraints.items():
             # cardinality,table,foreign_table,attribute_mappings = values
             self.schema_graph.add_fk_constraint(constraint,*values)
-        self.schema_graph.persist_to_file(self.config.schema_graph_filepath)
+        self.schema_graph.persist_to_file(f'{self.config.dataset_directory}/schema_graph')
 
     def create_partial_schema_index(self):
         tables_attributes = None
@@ -79,7 +80,7 @@ class IndexHandler:
         
         def part_index():
             self.partial_index_count+=1
-            partial_index_filename = f'{self.config.value_index_filepath}.part{self.partial_index_count:02d}'
+            partial_index_filename = f'{self.config.dataset_directory}/value_index.part{self.partial_index_count:02d}'
             print(partial_index_filename)
             logger.info(f'Storing value_index.part{self.partial_index_count} in {partial_index_filename}')
             self.value_index.persist_to_file(partial_index_filename)
@@ -97,12 +98,13 @@ class IndexHandler:
         part_index()
 
     def remove_partial_value_indexes(self):
-        filenames=glob(f'{self.config.value_index_filepath}.part*')
+        filenames=glob(f'{self.config.dataset_directory}/value_index.part*')
         for filename in filenames:
             if exists(filename):
                 remove(filename)
             else:
                 print(f"The file {filename} does not exist.") 
+        self.partial_index_count=0
 
 
     def merge_partial_value_indexes_and_process_max_frequency(self):
@@ -120,17 +122,19 @@ class IndexHandler:
         num_total_attributes=self.schema_index.get_num_total_attributes()
         babel = BabelHash.babel
 
-        filenames=glob(f'{self.config.value_index_filepath}.part*')
+        dataset_directory=self.config.dataset_directory
+        # Gets value_index parts ignoring the extensions and possible 
+        filenames={f'{dataset_directory}/{m.groups()[0]}' for f in listdir(dataset_directory) if (m:= match(r'(value_index.part\d+).*', f))}
+        
         with ExitStack() as stack:
-            partial_value_indexes = [stack.enter_context(shelve.open(fname.replace('.db', ''),flag='r')) for fname in filenames]
-            final_value_index = stack.enter_context(shelve.open(f'{self.config.value_index_filepath.replace(".db", "")}',flag='n'))
+            partial_value_indexes = [stack.enter_context(shelve.open(fname,flag='r')) for fname in filenames]
+            final_value_index = stack.enter_context(shelve.open(f'{dataset_directory}/value_index',flag='n'))
 
             for partial_value_index in partial_value_indexes:
                 babel.update(partial_value_index['__babel__'])
             final_value_index['__babel__'] = babel
 
             for i in range( len(partial_value_indexes)):
-                print(f'i {i} {filenames[i]}')
                 for word in partial_value_indexes[i]:
 
                     if word in final_value_index or word == '__babel__':
@@ -169,7 +173,7 @@ class IndexHandler:
                     final_value_index[word]=merged_value
 
     def process_norms(self):
-        with shelve.open(f'{self.config.value_index_filepath}') as full_index:
+        with shelve.open(f'{self.config.dataset_directory}/value_index') as full_index:
             for word in full_index:
                 if word == '__babel__':
                     continue
@@ -190,9 +194,10 @@ class IndexHandler:
                 for weight_scheme in range(4):
                     self.schema_index[table][attribute]['norm'][weight_scheme] **= 0.5
 
-        self.schema_index.persist_to_file(self.config.schema_index_filepath)
+        self.schema_index.persist_to_file(f'{self.config.dataset_directory}/schema_index')
 
     def load_indexes(self,**kwargs):
-        self.schema_graph.load_from_file(self.config.schema_graph_filepath)
+        dataset_directory = self.config.dataset_directory
+        self.schema_graph.load_from_file(f'{dataset_directory}/schema_graph')
         self.value_index.load_from_file(self.config.value_index_filepath,**kwargs)
-        self.schema_index.load_from_file(self.config.schema_index_filepath)
+        self.schema_index.load_from_file(f'{dataset_directory}/schema_index')
