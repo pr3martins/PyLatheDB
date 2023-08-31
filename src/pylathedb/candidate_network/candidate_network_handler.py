@@ -38,6 +38,7 @@ class CandidateNetworkHandler:
                     query_match,
                     keyword_query,
                     schema_graph,
+                    schema_index,
                     self.database_handler,
                     self.bert_model,
                     **kwargs
@@ -133,7 +134,7 @@ class CandidateNetworkHandler:
                                 # print(f'next_jnkm:\n{next_jnkm}')
                                 if next_jnkm.is_total(query_match):
                                     if not next_jnkm.contains_keyword_free_match_leaf():                                      
-                                        if not instance_based_pruning or not self.is_cn_empty(schema_graph,next_jnkm):
+                                        if not instance_based_pruning or not self.is_cn_empty(schema_graph,schema_index,next_jnkm):
                                             returned_cns.append(next_jnkm)
                                         else:
                                             empty_cns.append(next_jnkm)
@@ -179,6 +180,6 @@ class CandidateNetworkHandler:
 
         return sum_norm_attributes
     
-    def is_cn_empty(self,schema_graph,candidate_network):
-        sql = candidate_network.get_sql_from_cn(schema_graph)
+    def is_cn_empty(self,schema_graph,schema_index,candidate_network):
+        sql = candidate_network.get_sql_from_cn(schema_graph,schema_index)
         return self.database_handler.exist_results(sql) == False

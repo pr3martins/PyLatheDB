@@ -6,7 +6,7 @@ from pylathedb.utils.lathe_result import LatheResult
 from pylathedb.index import IndexHandler
 from pylathedb.database import DatabaseHandler
 from pylathedb.keyword_match import KeywordMatchHandler
-from pylathedb.query_match import QueryMatchHandler
+from pylathedb.query_match import QueryMatchHandler, QueryMatch
 from pylathedb.candidate_network import CandidateNetworkHandler
 from pylathedb.evaluation import EvaluationHandler
 
@@ -22,8 +22,8 @@ class Lathe:
 
         self.max_qm_size = 3
         self.max_cjn_size = 5
-        self.topk_cns = 5
-        self.configuration = (5,1,9)
+        self.topk_cns = 20
+        self.configuration = (8,1,9)
 
         self.database_handler = DatabaseHandler(self.config)
         self.index_handler = IndexHandler(self.config, self.database_handler)
@@ -101,12 +101,11 @@ class Lathe:
         return evaluated_results
 
     def keyword_search(self,keyword_query=None,**kwargs):
-        max_qm_size=kwargs.get('max_qm_size', self.max_qm_size)
-        max_cjn_size=kwargs.get('max_cjn_size',self.max_cjn_size )
-        topk_cns=kwargs.get('topk_cns', self.topk_cns)
-        configuration = kwargs.get('configuration', self.configuration)
+        max_qm_size=kwargs.setdefault('max_qm_size', self.max_qm_size)
+        max_cjn_size=kwargs.setdefault('max_cjn_size',self.max_cjn_size )
+        topk_cns=kwargs.setdefault('topk_cns',self.topk_cns )
 
-        
+        configuration = kwargs.get('configuration', self.configuration)       
         max_num_query_matches,topk_cns_per_qm,max_database_accesses = configuration  
         kwargs['max_database_accesses']=max_database_accesses
         kwargs['instance_based_pruning'] = (max_database_accesses>0)
@@ -121,6 +120,7 @@ class Lathe:
         skip_cn_generations = kwargs.get('skip_cn_generations',False)
         show_kms_in_result = kwargs.get('show_kms_in_result',True)
         use_result_class = kwargs.get('use_result_class',True)
+        input_cjns = kwargs.get('input_cjns',{})
 
         weight_scheme = kwargs.get('weight_scheme',0)
         #preventing to send multiple values for weight_scheme
@@ -145,12 +145,11 @@ class Lathe:
         if isinstance(keyword_query, int):
             keyword_query=self.get_queryset()[keyword_query-1]['keyword_query']
 
-        print(f'Keyword Query: {keyword_query}')
+        # print(f'Keyword Query: {keyword_query}')
         keywords =  self.tokenizer.keywords(keyword_query)
         compound_keywords =  self.tokenizer.keywords(keyword_query)
 
-        for _ in range(repeat):
-            
+        for _ in range(repeat):  
             if not assume_golden_qms:
                 start_skm_time = timer()
                 
@@ -191,20 +190,37 @@ class Lathe:
                 kwargs['desired_cn'] = desired_cn
             else:
                 kwargs['desired_cn'] = None
-
-            if not skip_cn_generations:
-                ranked_cns = self.candidate_network_handler.generate_cns(
-                    self.index_handler.schema_index,
-                    self.index_handler.schema_graph,
-                    ranked_query_matches,
-                    keywords,
-                    weight_scheme,
-                    keyword_query,
+                
+            if keyword_query not in input_cjns:
+                if not skip_cn_generations:
+                    ranked_cns = self.candidate_network_handler.generate_cns(
+                        self.index_handler.schema_index,
+                        self.index_handler.schema_graph,
+                        ranked_query_matches,
+                        keywords,
+                        weight_scheme,
+                        keyword_query,
                         **kwargs,
-                )
+                    )
             else:
-                ranked_cns=[]
+                returned_cns=input_cjns.setdefault(keyword_query,[])
+                for cjn in returned_cns:
+                    cjn.calculate_score(
+                        QueryMatch(cjn.non_free_keyword_matches()),
+                        keyword_query,
+                        self.index_handler.schema_graph,
+                        self.index_handler.schema_index,
+                        self.database_handler,
+                        self.candidate_network_handler.bert_model,
+                        **kwargs
+                    )
 
+
+                ranked_cns=sorted(
+                    returned_cns,
+                    key=lambda candidate_network: candidate_network.score,
+                    reverse=True
+                )
 
             logger.info('%d CNs generated: %s',len(ranked_cns),[(cn.score,cn) for cn in ranked_cns])
             end_cn_time = timer()

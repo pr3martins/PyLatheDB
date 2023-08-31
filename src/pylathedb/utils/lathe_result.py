@@ -46,7 +46,7 @@ class LatheResult():
                 print('Graph:')
                 display(g)
             if show_df or show_sql:
-                sql=cjn.get_sql_from_cn(self.index_handler.schema_graph)
+                sql=cjn.get_sql_from_cn(self.index_handler.schema_graph,self.index_handler.schema_index)
                 if show_sql:
                     printmd('---')
                     print(f'SQL:\n{shift_tab(sql,sep="  ")}\n')
