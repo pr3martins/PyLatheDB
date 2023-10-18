@@ -108,8 +108,11 @@ class Graph:
 
     def leaves(self):
         for vertice in self.vertices():
-            if sum(1 for neighbor in self.neighbors(vertice)) == 1:
+            if self.is_leaf(vertice):
                 yield vertice
+    
+    def is_leaf(self,vertice):
+        return sum(1 for neighbor in self.neighbors(vertice)) == 1
 
     def num_leaves(self):
         return len(list(self.leaves()))

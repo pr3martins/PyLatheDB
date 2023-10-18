@@ -4,16 +4,20 @@ from queue import deque
 from sentence_transformers import util
 from sklearn.metrics.pairwise import euclidean_distances
 from numpy import array, char
+from sentence_transformers import util
+from sklearn.metrics.pairwise import euclidean_distances
+from numpy import array, char
 
 from pylathedb.keyword_match import KeywordMatch
 from pylathedb.utils import Graph,sort_dataframe_by_token_length,sort_dataframe_by_bow_size
 
 class CandidateNetwork(Graph):
 
-    def __init__(self, graph_dict=None):
+    def __init__(self, graph_dict=None, **kwargs):
         self.score = None
         self.__root = None
         self._df = None
+        self._is_template = kwargs.get('is_template',False)
 
         super().__init__(graph_dict)
 
@@ -29,7 +33,7 @@ class CandidateNetwork(Graph):
 
         if vertex is not None:
             keyword_match,_ = vertex
-            if not keyword_match.is_free():
+            if not keyword_match.is_free() or self._is_template:
                 self.__root = vertex
                 return vertex
             else:
@@ -37,7 +41,8 @@ class CandidateNetwork(Graph):
         else:
             for candidate in self.vertices():
                 keyword_match,_ = candidate
-                if not keyword_match.is_free():
+                # CJN Templates can have a keyword-free match as root note
+                if not keyword_match.is_free() or self._is_template:
                     self.__root = candidate
                     return candidate
 
@@ -272,7 +277,6 @@ class CandidateNetwork(Graph):
 
         if not isinstance(other,CandidateNetwork):
             return False
-
         self_root_km,_  = self.__root
         # if other.get_root() is None:
         #     print(f'OTHER ROOT IS NONE')
@@ -383,6 +387,8 @@ class CandidateNetwork(Graph):
         show_table_alias=kwargs.get('show_table_alias',False)
         distinct=kwargs.get('distinct',True)
         show_only_indexable_attributes=kwargs.get('show_only_indexable_attributes',False)
+        use_disambiguation_conditions = kwargs.get('use_disambiguation_conditions',True)
+        overwrite_from_clause = kwargs.get('overwrite_from_clause',None)
 
 
         hashtables = {} # used for disambiguation
@@ -413,7 +419,10 @@ class CandidateNetwork(Graph):
 
         for prev_vertex,direction,vertex in self.dfs_pair_iter(root_predecessor=True):
             keyword_match, alias = vertex
-            for type_km, table ,attribute,keywords in keyword_match.mappings():
+            keyword_mappings = keyword_match.mappings()
+            if self._is_template and keyword_match.table in schema_index:
+                keyword_mappings = [('s',keyword_match.table,'*',keyword_match.table)]
+            for type_km, table ,attribute,keywords in keyword_mappings:
                 attributes_to_select = [(alias,attribute)]
                 if show_only_indexable_attributes and attribute=='*':
                     attributes_to_select = [(alias,attr) for attr in schema_index[table].keys()]
@@ -481,10 +490,11 @@ class CandidateNetwork(Graph):
                 if show_evaluation_fields:
                     relationships__search_id.append(f'({alias}.__search_id, {prev_alias}.__search_id)')
 
-        for _,aliases in hashtables.items():
-            for i in range(len(aliases)):
-                for j in range(i+1,len(aliases)):
-                    disambiguation_conditions.append(f'{aliases[i]}.ctid <> {aliases[j]}.ctid')
+        if use_disambiguation_conditions:
+            for _,aliases in hashtables.items():
+                for i in range(len(aliases)):
+                    for j in range(i+1,len(aliases)):
+                        disambiguation_conditions.append(f'{aliases[i]}.ctid <> {aliases[j]}.ctid')
 
         if len(tables__search_id)>0:
             tables__search_id = [f"({', '.join(tables__search_id)}) AS Tuples"]
@@ -500,6 +510,9 @@ class CandidateNetwork(Graph):
         else:
             where_clause= ''
 
+        if overwrite_from_clause is not None:
+            selected_tables=[overwrite_from_clause]
+            
         sql_text = '\nSELECT{}\n\t{}\nFROM\n\t{}\n{}\nLIMIT {};'.format(
             ' DISTINCT ' if distinct else '',
             ',\n\t'.join( tables__search_id+relationships__search_id+list(selected_attributes) ),

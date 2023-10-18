@@ -14,6 +14,9 @@ logger = get_logger(__name__)
 class DatabaseHandler:
     def __init__(self,config):
         self.config = config
+        timeout=100000
+        self.engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection),
+                                connect_args={"options": f"-c statement_timeout={timeout}"})
 
     def get_tables_and_attributes(self):
         with psycopg2.connect(**self.config.connection) as conn:
@@ -89,7 +92,7 @@ class DatabaseHandler:
 
     def exec_sql (self,sql,**kwargs):
         show_results=kwargs.get('show_results',True)
-
+        table = None
         with psycopg2.connect(**self.config.connection) as conn:
             with conn.cursor() as cur:
                 try:
@@ -108,8 +111,10 @@ class DatabaseHandler:
                 return table
 
     def get_dataframe(self,sql,**kwargs):
-        engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection))
-        df = pd.read_sql_query(sql, engine)
+        timeout = kwargs.get('timeout',100000)
+        # engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection),
+        #                         connect_args={"options": f"-c statement_timeout={timeout}"})
+        df = pd.read_sql_query(sql, self.engine)
         return df
 
     def exist_results(self,sql):
