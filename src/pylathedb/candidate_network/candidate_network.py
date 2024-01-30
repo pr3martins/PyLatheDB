@@ -1,3 +1,4 @@
+from graphviz import Digraph
 import json
 from collections import Counter  #used to check whether two CandidateNetworks are equal
 from queue import deque
@@ -7,6 +8,7 @@ from numpy import array, char
 from sentence_transformers import util
 from sklearn.metrics.pairwise import euclidean_distances
 from numpy import array, char
+import pandas as pd
 
 from pylathedb.keyword_match import KeywordMatch
 from pylathedb.utils import Graph,sort_dataframe_by_token_length,sort_dataframe_by_bow_size
@@ -23,6 +25,22 @@ class CandidateNetwork(Graph):
 
         if len(self)>0:
             self.set_root()
+
+    def show(self,display_graph=True):
+        g= Digraph(
+            graph_attr={'nodesep':'0.2','ranksep':'0.25'},
+            node_attr={'fontsize':"9.0",},
+            edge_attr={'arrowsize':'0.9',},
+        )
+        for label,id in self.vertices():
+            g.node(id,label=str(label))
+        for (label_a,id_a),(label_b,id_b) in self.edges():
+            g.edge(id_a,id_b)
+            
+        if display_graph:
+            display(g)
+        return g
+
 
     def get_root(self):
         return self.__root
@@ -74,6 +92,20 @@ class CandidateNetwork(Graph):
         if self.__root is None:
             self.set_root(vertex)
         return results
+    
+    def update_vertex(self,vertex,new_vertex):
+        if vertex==new_vertex:
+            return
+
+        self._graph_dict[new_vertex]=self._graph_dict[vertex]
+        del self._graph_dict[vertex]
+        
+        for direction in range(2):
+            for adj_vertex in self._graph_dict[new_vertex][direction]:
+                self._graph_dict[adj_vertex][not direction].remove(vertex)
+                self._graph_dict[adj_vertex][not direction].add(new_vertex)
+        if self.get_root() == vertex:
+            self.set_root(new_vertex)
 
     def add_keyword_match(self, heyword_match, **kwargs):
         alias = kwargs.get('alias', 't{}'.format(self.__len__()+1))
@@ -188,6 +220,16 @@ class CandidateNetwork(Graph):
         for (keyword_match,_),(neighbor_keyword_match,_) in self.edges():
             yield (keyword_match,neighbor_keyword_match)
 
+    def load_df(self,schema_graph,schema_index,database_handler,**kwargs):
+        kwargs.setdefault('show_table_alias',True)
+        kwargs.setdefault('show_only_indexable_attributes',True)
+        kwargs.setdefault('cast_to_string',True)
+
+        sql = self.get_sql_from_cn(schema_graph,schema_index,
+                **kwargs
+            )
+        self._df = database_handler.get_dataframe(sql)
+        
     def get_sentences(self,schema_graph,schema_index,database_handler,**kwargs):
         cjn_ranking_method = kwargs.get('cjn_ranking_method',0)
         snapshot_method = kwargs.get('snapshot_method','first')
@@ -213,6 +255,10 @@ class CandidateNetwork(Graph):
 
         sentences = []
 
+        if cjn_ranking_method == 4:
+            sentences = [' '.join([' '.join(map(str, df[col])) for col in df.columns])]
+            return sentences
+        
         if cjn_ranking_method <= 2:
             for i,(index, row) in enumerate(df.iterrows()):
                 attrs_repr = []
@@ -255,9 +301,9 @@ class CandidateNetwork(Graph):
             self.score = query_match.total_score/len(self)
             return self.score
 
-        sentences_to_compare = [keyword_query]+self.get_sentences(schema_graph,schema_index,database_handler,**kwargs)
+        sentences_to_compare = [f'query: {keyword_query}']+self.get_sentences(schema_graph,schema_index,database_handler,**kwargs)
 
-        embeddings = bert_model.encode(array(sentences_to_compare))
+        embeddings = bert_model.encode(sentences_to_compare)
 
         query_emb = array([embeddings[0]])
         row_emb = embeddings[1:]
@@ -345,28 +391,51 @@ class CandidateNetwork(Graph):
         print_string = ['\t'*level+direction+str(vertex[0])  for direction,level,vertex in self.leveled_dfs_iter()]
         return '\n'.join(print_string)
 
-    def to_json_serializable(self):
-        return [{'keyword_match':keyword_match.to_json_serializable(),
-            'alias':alias,
-            'outgoing_neighbors':[alias for (km,alias) in outgoing_neighbors],
-            'incoming_neighbors':[alias for (km,alias) in incoming_neighbors]}
-            for (keyword_match,alias),(outgoing_neighbors,incoming_neighbors) in self._graph_dict.items()]
+    def to_json_serializable(self,version=2,store_df=False):
+        vertices=[
+                {
+                    'keyword_match':keyword_match.to_json_serializable(),
+                    'alias':alias,
+                    'outgoing_neighbors':[alias for (km,alias) in outgoing_neighbors],
+                    'incoming_neighbors':[alias for (km,alias) in incoming_neighbors],
+                }
+                for (keyword_match,alias),(outgoing_neighbors,incoming_neighbors) in self._graph_dict.items()
+            ]
+        if version==1:
+            return vertices
+        if version==2:
+            return {
+                'vertices':vertices,
+                'df': None if self._df is None else self._df.to_dict(),
+                'score':self.score,
+            }
 
     def to_json(self):
         return json.dumps(self.to_json_serializable())
 
     @staticmethod
     def from_json_serializable(json_serializable_cn):
+        candidate_network = CandidateNetwork()
+
+        if isinstance(json_serializable_cn, list):
+            # version 1
+            vertices = json_serializable_cn
+        else:
+            vertices = json_serializable_cn['vertices']
+            df_dict = json_serializable_cn['df']
+            candidate_network._df = None if df_dict is None else pd.DataFrame.from_dict(df_dict)
+            candidate_network.score = json_serializable_cn['score']
+
         alias_hash ={}
         edges=[]
-        for vertex in json_serializable_cn:
+        for vertex in vertices:
             keyword_match = KeywordMatch.from_json_serializable(vertex['keyword_match'])
             alias_hash[vertex['alias']]=keyword_match
 
             for outgoing_neighbor in vertex['outgoing_neighbors']:
                 edges.append( (vertex['alias'],outgoing_neighbor) )
 
-        candidate_network = CandidateNetwork()
+        
         for alias,keyword_match in alias_hash.items():
             candidate_network.add_vertex( (keyword_match,alias) )
         for alias1, alias2 in edges:
@@ -389,7 +458,7 @@ class CandidateNetwork(Graph):
         show_only_indexable_attributes=kwargs.get('show_only_indexable_attributes',False)
         use_disambiguation_conditions = kwargs.get('use_disambiguation_conditions',True)
         overwrite_from_clause = kwargs.get('overwrite_from_clause',None)
-
+        cast_to_string = kwargs.get('cast_to_string',False)
 
         hashtables = {} # used for disambiguation
         used_fks = {}
@@ -413,6 +482,8 @@ class CandidateNetwork(Graph):
                 return 'integer'
             if table == 'organization' and attribute=='abbreviation':
                 return 'varchar'
+            if attribute=='gdp':
+                return 'integer'
             if attribute=='stars':
                 return 'integer'
             return 'fulltext_indexed'
@@ -428,6 +499,8 @@ class CandidateNetwork(Graph):
                     attributes_to_select = [(alias,attr) for attr in schema_index[table].keys()]
                 for alias_to_select,attribute_to_select in attributes_to_select:
                     selected_attr = f'{alias_to_select}.{attribute_to_select}'
+                    if cast_to_string:
+                        selected_attr=f'CAST({selected_attr} AS VARCHAR)'
                     if show_table_alias:
                         selected_attr=f'{selected_attr} AS "{alias_to_select}.{attribute_to_select}"'
                     selected_attributes.add(selected_attr)

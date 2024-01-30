@@ -8,6 +8,7 @@ tests
 texts
 coffman_original_golden_standards
 newquerysets
+bert
 
 *.zip
 *.egg-info

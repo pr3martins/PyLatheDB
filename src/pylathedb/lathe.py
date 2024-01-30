@@ -1,5 +1,9 @@
 import json
 from timeit import default_timer as timer
+from tqdm.auto import tqdm
+import spacy
+import spacy.displacy as displacy
+import en_core_web_sm
 
 from pylathedb.utils import ConfigHandler, Similarity, get_logger, Tokenizer, next_path
 from pylathedb.utils.lathe_result import LatheResult
@@ -68,7 +72,7 @@ class Lathe:
 
         self.index_handler.load_indexes(keywords = keywords_to_load)
 
-        for item in self.get_queryset():
+        for item in tqdm(self.get_queryset()):
             keyword_query = item['keyword_query']
 
             if keyword_query in preprocessed_results:
@@ -121,6 +125,7 @@ class Lathe:
         show_kms_in_result = kwargs.get('show_kms_in_result',True)
         use_result_class = kwargs.get('use_result_class',True)
         input_cjns = kwargs.get('input_cjns',{})
+        use_ner = kwargs.get('use_ner',False)
 
         weight_scheme = kwargs.get('weight_scheme',0)
         #preventing to send multiple values for weight_scheme
@@ -147,7 +152,12 @@ class Lathe:
 
         # print(f'Keyword Query: {keyword_query}')
         keywords =  self.tokenizer.keywords(keyword_query)
-        compound_keywords =  self.tokenizer.keywords(keyword_query)
+
+        if use_ner:
+            nlp = en_core_web_sm.load()
+            compound_keywords =  [self.tokenizer.keywords(ent.text) for ent in nlp(keyword_query).ents]
+        else:
+            compound_keywords=keywords
 
         for _ in range(repeat):  
             if not assume_golden_qms:
@@ -259,12 +269,13 @@ class Lathe:
         return result
 
     def change_queryset(self,ans=None):
-        self._queryset=None
+        if ans is not None:
+            self._queryset=None
         self.config.change_queryset(ans)
         self.load_indexes()
 
     def create_indexes(self):
         self.index_handler.create_indexes()
 
-    def load_indexes(self):
-        self.index_handler.load_indexes()
+    def load_indexes(self,**kwargs):
+        self.index_handler.load_indexes(**kwargs)

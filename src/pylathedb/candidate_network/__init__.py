@@ -1,2 +1,3 @@
 from .candidate_network import CandidateNetwork
 from .candidate_network_handler import CandidateNetworkHandler
+from .transformers import BERTHandler

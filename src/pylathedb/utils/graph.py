@@ -1,3 +1,5 @@
+from graphviz import Digraph
+
 class Graph:
     __slots__ = ['_graph_dict','_edges_info']
     def __init__(self, graph_dict=None, edges_info=None):
@@ -131,3 +133,17 @@ class Graph:
 
     def str_edges_info(self):
         return str(self._edges_info)
+
+    def show(self,display_graph=True):
+        g= Digraph(
+            graph_attr={'nodesep':'0.2','ranksep':'0.25'},
+            node_attr={'fontsize':"9.0",},
+            edge_attr={'arrowsize':'0.9',},
+        )
+        for id in self.vertices():
+            g.node(id,label=str(id.upper()))
+        for id_a,id_b in self.edges():
+            g.edge(id_a,id_b)
+        if display_graph:
+            display(g)
+        return g

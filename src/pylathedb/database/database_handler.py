@@ -15,6 +15,11 @@ class DatabaseHandler:
     def __init__(self,config):
         self.config = config
         timeout=100000
+        self.engine = None
+
+    def load_engine(self):
+        # timeout = kwargs.get('timeout',100000)
+        timeout=100000
         self.engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection),
                                 connect_args={"options": f"-c statement_timeout={timeout}"})
 
@@ -111,9 +116,10 @@ class DatabaseHandler:
                 return table
 
     def get_dataframe(self,sql,**kwargs):
-        timeout = kwargs.get('timeout',100000)
-        # engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection),
-        #                         connect_args={"options": f"-c statement_timeout={timeout}"})
+        # timeout = kwargs.get('timeout',100000)
+        if self.engine is None:
+            self.load_engine()
+
         df = pd.read_sql_query(sql, self.engine)
         return df
 

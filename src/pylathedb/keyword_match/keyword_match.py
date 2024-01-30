@@ -14,10 +14,10 @@ class KeywordMatch:
         return len(self.schema_filter)==0 and len(self.value_filter)==0
 
     def has_value_mmapings(self):
-        return len(value_filter)>0
+        return len(self.value_filter)>0
 
     def has_schema_mmapings(self):
-        return len(schema_filter)>0
+        return len(self.schema_filter)>0
 
     def schema_mappings(self):
         for attribute, keywords in self.schema_filter:
