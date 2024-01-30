@@ -8,6 +8,7 @@ tests
 texts
 coffman_original_golden_standards
 newquerysets
+bert
 
 *.zip
 *.egg-info
@@ -175,3 +176,10 @@ Thumbs.db #thumbnail cache on Windows
 
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride

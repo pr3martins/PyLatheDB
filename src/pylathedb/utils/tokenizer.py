@@ -21,9 +21,9 @@ class Tokenizer:
 
     def tokenize(self,text):
         if self.tokenize_method == 'simple':
-            return [keyword.strip('._')
-                    for keyword in re.split(self.re_spaces, text.translate(self.translate_table))
-                    if keyword not in Tokenizer.stop_words
+            return [keyword
+                    for token in re.split(self.re_spaces, text.translate(self.translate_table))
+                    if ( keyword := token.strip('._') ) not in Tokenizer.stop_words
                     and len(keyword)>1
             ]
 

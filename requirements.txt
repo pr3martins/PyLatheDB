@@ -2,3 +2,4 @@ nltk
 psutil
 psycopg2-binary
 matplotlib
+sqlalchemy

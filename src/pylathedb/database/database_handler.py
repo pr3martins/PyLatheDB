@@ -3,6 +3,7 @@ from psycopg2.sql import SQL, Identifier
 from prettytable import PrettyTable
 from itertools import groupby
 import pandas as pd
+from sqlalchemy import create_engine
 
 from pylathedb.utils import ConfigHandler,get_logger
 
@@ -13,6 +14,14 @@ logger = get_logger(__name__)
 class DatabaseHandler:
     def __init__(self,config):
         self.config = config
+        timeout=100000
+        self.engine = None
+
+    def load_engine(self):
+        # timeout = kwargs.get('timeout',100000)
+        timeout=100000
+        self.engine = create_engine('postgresql+psycopg2://{user}:{password}@{host}:5432/{database}'.format(**self.config.connection),
+                                connect_args={"options": f"-c statement_timeout={timeout}"})
 
     def get_tables_and_attributes(self):
         with psycopg2.connect(**self.config.connection) as conn:
@@ -88,7 +97,7 @@ class DatabaseHandler:
 
     def exec_sql (self,sql,**kwargs):
         show_results=kwargs.get('show_results',True)
-
+        table = None
         with psycopg2.connect(**self.config.connection) as conn:
             with conn.cursor() as cur:
                 try:
@@ -107,9 +116,12 @@ class DatabaseHandler:
                 return table
 
     def get_dataframe(self,sql,**kwargs):
-        with psycopg2.connect(**self.config.connection) as conn:
-            df=pd.read_sql(sql,conn)
-            return df
+        # timeout = kwargs.get('timeout',100000)
+        if self.engine is None:
+            self.load_engine()
+
+        df = pd.read_sql_query(sql, self.engine)
+        return df
 
     def exist_results(self,sql):
         sql = f"SELECT EXISTS ({sql.rstrip(';')});"

@@ -27,9 +27,7 @@ class ConfigHandler:
         'queryset_filepath',
         'queryset_name',
         'attributes_filepath',
-        'schema_index_filepath',
-        'value_index_filepath',
-        'schema_graph_filepath',
+        'dataset_directory',
     }
 
     def __init__(self,**kwargs):

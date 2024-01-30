@@ -119,7 +119,7 @@ class ValueIndex():
         self._dict = {}
 
         self.persistant_filename = persistant_filename
-        load_method = kwargs.get('load_method','keywords')
+        load_method = kwargs.get('load_method','all_keywords')
         keywords = kwargs.get('keywords',[])
         sample_size = kwargs.get('sample_size',15)
 
